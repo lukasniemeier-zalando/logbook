@@ -23,6 +23,7 @@ package org.zalando.logbook.servlet;
 import org.zalando.logbook.Correlator;
 import org.zalando.logbook.Logbook;
 
+import javax.annotation.Nullable;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -41,9 +42,14 @@ final class SecurityStrategy implements Strategy {
         final TeeRequest request = new TeeRequest(httpRequest);
         final TeeResponse response = new TeeResponse(httpRequest, httpResponse);
 
-        chain.doFilter(request, response);
+        Exception chainException = null;
+        try {
+            chain.doFilter(request, response);
+        } catch (final Exception e) {
+            chainException = e;
+        }
 
-        if (isUnauthorized(response)) {
+        if (shouldLog(response, chainException)) {
             final Optional<Correlator> correlator;
 
             if (isFirstRequest(request)) {
@@ -56,6 +62,10 @@ final class SecurityStrategy implements Strategy {
                 correlator.get().write(response);
             }
         }
+    }
+
+    private boolean shouldLog(final TeeResponse response, @Nullable final Exception chainException) {
+        return chainException != null || isUnauthorized(response);
     }
 
     private boolean isUnauthorized(final HttpServletResponse response) {

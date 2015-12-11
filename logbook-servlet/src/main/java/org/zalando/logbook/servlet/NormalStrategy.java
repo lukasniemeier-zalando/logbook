@@ -45,9 +45,12 @@ final class NormalStrategy implements Strategy {
         if (correlator.isPresent()) {
             final TeeResponse response = new TeeResponse(httpRequest, httpResponse);
 
-            chain.doFilter(request, response);
-            response.getWriter().flush();
-            logResponse(correlator.get(), request, response);
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                response.getWriter().flush();
+                logResponse(correlator.get(), request, response);
+            }
         } else {
             chain.doFilter(httpRequest, httpResponse);
         }
